@@ -323,5 +323,31 @@ ISR (TIMER1_OVF_vect)				//ISR FOR TIMER1 COMPARE MATCH A
 
 ISR (INT0_vect)
 {
-// need to add code that protects for short circuit here 
+// measure current 
+
+	i2c_init();			// INITALIZE TWI FOR MASTER MODE
+	i2c_start();			// TRANSMIT START CONDITION
+	i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+	i2c_write(0x0E);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+	i2c_start();			   // TRANSMIT START CONDITION
+	i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+	MSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+	i2c_stop();
+	
+	i2c_init();			// INITALIZE TWI FOR MASTER MODE
+	i2c_start();			// TRANSMIT START CONDITION
+	i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+	i2c_write(0x0F);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+	i2c_start();			   // TRANSMIT START CONDITION
+	i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+	LSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+	i2c_stop();
+	
+	
+	// combine the CLSB and CMSB
+
+	AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
+	
+	// add in an iff statement that shuts off bidirectional switch here 
+	
 }
