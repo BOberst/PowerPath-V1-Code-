@@ -162,9 +162,11 @@ int main (void)
 		// this is the voltage for the middle cell 
 
 
+
+// this is if the bidirectional switch is on 
 		if (PORTD && 0x20 == 0x20)				// charge and discharge are turned on
 		{
-			//do nothing if this is the case
+			
 			
 			i2c_init();			// INITALIZE TWI FOR MASTER MODE
 			i2c_start();			// TRANSMIT START CONDITION
@@ -193,6 +195,49 @@ int main (void)
 			
 			
 				// if (current is charging)
+				
+						i2c_init();			// INITALIZE TWI FOR MASTER MODE
+						i2c_start();			// TRANSMIT START CONDITION
+						i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+						i2c_write(0x08);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+						i2c_start();			   // TRANSMIT START CONDITION
+						i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+						MSBVOLT = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+						i2c_stop();
+						
+						// this is for the LSB of the voltage register
+						
+						i2c_init();			// INITALIZE TWI FOR MASTER MODE
+						i2c_start();			// TRANSMIT START CONDITION
+						i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+						i2c_write(0x09);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+						i2c_start();			   // TRANSMIT START CONDITION
+						i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+						LSBVOLT = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+						i2c_stop();
+
+						// combine the CLSB and CMSB
+
+						VOLT = (LSBVOLT | (0xFF00 & (MSBVOLT << 8)));	// adds on MSB
+						
+						
+						ADCSRA |= (1<<ADSC);		  // start conversion
+						while((ADCSRA&(1<ADIF)) ==0);	 // wait for conversion to finish
+						ADCSRA |= (1<<ADIF);		// set the ADC interrupt flag
+						C1LSB = ADCL;			// give the low byte to PortD
+						C1MSB = ADCH;			 // give the high byte to PortD
+						
+						C1VOLT = (C1LSB | (0xFF00 & (C1MSB << 8)));	// adds on MSB
+						
+						// do the math that combines the voltages and determines it for cell 1 and cell 2
+						
+						
+						// if they are off then turn on the gates. 
+						
+						// balance 1 is pd7 
+						// balance 2 is pd6
+						
+						
 				
 				// check if mV between cell one and cell two are greater than 40mV
 				// will need to do some math here
@@ -394,6 +439,6 @@ ISR (INT0_vect)
 
 	AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
 	
-	// add in an iff statement that shuts off bidirectional switch here 
+	// add in an if statement that shuts off bidirectional switch here 
 	
 }
