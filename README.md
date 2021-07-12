@@ -17,3 +17,7 @@ has an updated ADC measurement where the cell 1 middle voltage is incorporated i
 main v2
 
 incorporated an external interrupt service routine connected to the coulomb counter. Needs to add in I2C communication for Amperage here
+
+main v3
+
+this has the pseudocode set in for a balancing algorithm 
