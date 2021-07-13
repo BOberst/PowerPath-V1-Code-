@@ -20,4 +20,4 @@ incorporated an external interrupt service routine connected to the coulomb coun
 
 main v3
 
-this has the pseudocode set in for a balancing algorithm 
+currently being revised but has code to work on a balancing algorithm  
