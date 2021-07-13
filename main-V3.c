@@ -15,7 +15,8 @@ unsigned char C1MSB = 0;			// Middle Cell Voltage MSB
 unsigned short VOLT = 0;			// Volt 16 bit
 unsigned short CHARGE = 0;			// Charge 16 bit
 unsigned short AMP = 0;				// Current 16 bit
-unsigned short C1VOLT = 0;			// Cell 1 Voltage 
+unsigned short C1VOLT = 0;			// Cell 1 Voltage
+unsigned short C1VOLTL = 0; 	     // Long Cell 1 Voltage 16 bits 
 
 
 // double check this I2C communication again
@@ -78,7 +79,7 @@ int main (void)
 	i2c_write(0xD8);			//send D8 which makes automatic measurements and sets prescaler to 64.
 	i2c_stop();
 	
-	DDRD = 0x24;				// bidirectional switch and interrupt 0 
+	DDRD = 0x24;				// bidirectional switch and interrupt 0
 	PORTD = 0xFF;
 	DDRB = 0xFF;
 	PORTB = 0x00;
@@ -106,9 +107,9 @@ int main (void)
 		i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
 		CMSB = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
 		i2c_stop();
-	
+		
 		//this is for the LSB of the accumulated charge register
-	
+		
 		i2c_init();			// INITALIZE TWI FOR MASTER MODE
 		i2c_start();			// TRANSMIT START CONDITION
 		i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
@@ -149,7 +150,7 @@ int main (void)
 
 		VOLT = (LSBVOLT | (0xFF00 & (MSBVOLT << 8)));	// adds on MSB
 		
-		//ADC conversion of the first cell's voltage put it in C1Volt for later use 
+		//ADC conversion of the first cell's voltage put it in C1Volt for later use
 		
 		ADCSRA |= (1<<ADSC);		  // start conversion
 		while((ADCSRA&(1<ADIF)) ==0);	 // wait for conversion to finish
@@ -159,11 +160,11 @@ int main (void)
 		
 		C1VOLT = (C1LSB | (0xFF00 & (C1MSB << 8)));	// adds on MSB
 		
-		// this is the voltage for the middle cell 
+		// this is the voltage for the middle cell
 
 
 
-// this is if the bidirectional switch is on 
+		// this is if the bidirectional switch is on
 		if (PORTD && 0x20 == 0x20)				// charge and discharge are turned on
 		{
 			
@@ -194,151 +195,169 @@ int main (void)
 			
 			
 			
-				// if (current is charging)
-				
-						i2c_init();			// INITALIZE TWI FOR MASTER MODE
-						i2c_start();			// TRANSMIT START CONDITION
-						i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
-						i2c_write(0x08);		    //TRANSMIT WHAT ADDRESS TO READ FROM
-						i2c_start();			   // TRANSMIT START CONDITION
-						i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
-						MSBVOLT = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
-						i2c_stop();
-						
-						// this is for the LSB of the voltage register
-						
-						i2c_init();			// INITALIZE TWI FOR MASTER MODE
-						i2c_start();			// TRANSMIT START CONDITION
-						i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
-						i2c_write(0x09);		    //TRANSMIT WHAT ADDRESS TO READ FROM
-						i2c_start();			   // TRANSMIT START CONDITION
-						i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
-						LSBVOLT = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
-						i2c_stop();
+				if (AMP > 0x8010) // if charging current is greater than 10mA
+				{
+			
+				i2c_init();			// INITALIZE TWI FOR MASTER MODE
+				i2c_start();			// TRANSMIT START CONDITION
+				i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+				i2c_write(0x08);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+				i2c_start();			   // TRANSMIT START CONDITION
+				i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+				MSBVOLT = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+				i2c_stop();
+			
+				// this is for the LSB of the voltage register
+			
+				i2c_init();			// INITALIZE TWI FOR MASTER MODE
+				i2c_start();			// TRANSMIT START CONDITION
+				i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+				i2c_write(0x09);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+				i2c_start();			   // TRANSMIT START CONDITION
+				i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+				LSBVOLT = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+				i2c_stop();
 
-						// combine the CLSB and CMSB
+				// combine the CLSB and CMSB
 
-						VOLT = (LSBVOLT | (0xFF00 & (MSBVOLT << 8)));	// adds on MSB
-						
-						
-						ADCSRA |= (1<<ADSC);		  // start conversion
-						while((ADCSRA&(1<ADIF)) ==0);	 // wait for conversion to finish
-						ADCSRA |= (1<<ADIF);		// set the ADC interrupt flag
-						C1LSB = ADCL;			// give the low byte to PortD
-						C1MSB = ADCH;			 // give the high byte to PortD
-						
-						C1VOLT = (C1LSB | (0xFF00 & (C1MSB << 8)));	// adds on MSB
-						
-						// do the math that combines the voltages and determines it for cell 1 and cell 2
-						
-						
-						// if they are off then turn on the gates. 
-						
-						// balance 1 is pd7 
-						// balance 2 is pd6
-						
-						
+				VOLT = (LSBVOLT | (0xFF00 & (MSBVOLT << 8)));	// adds on MSB
+			
+			
+				ADCSRA |= (1<<ADSC);		  // start conversion
+				while((ADCSRA&(1<ADIF)) ==0);	 // wait for conversion to finish
+				ADCSRA |= (1<<ADIF);		// set the ADC interrupt flag
+				C1LSB = ADCL;			// give the low byte to PortD
+				C1MSB = ADCH;			 // give the high byte to PortD
+			
+				C1VOLT = (C1LSB | (0xFF00 & (C1MSB << 8)));	// adds on MSB
 				
-				// check if mV between cell one and cell two are greater than 40mV
-				// will need to do some math here
-					// if (c1>c2)
-					//else if (c2<c1)
-					//else do nothing  
+				C1VOLTL = C1VOLT << 6; // this shifts the C1 Volt left 6 digits which makes it 16 bits
+				C1VOLTL = C1VOLT | 0x003F; // this & it with 6 0s. 
 				
-				// else if (current is not charging)
+				// C1VOLTL and VOLT are now both 16 bit shorts 
 				
-				// do nothing 
-					
+				        C1VOLTL = C1VOLTL * (5/23.6); // it is now scaled to the same scale of 23.6 volts 
+						VOLT = VOLT - C1VOLTL; // subtract the bottom cell to get only the top cell voltage 
+						// now VOLT and C1VOLTL should be apples to apples 
+						// need to calculate accuracy of two data types here
+						// it should be OK for now.
+						if (VOLT > C1VOLTL)
+						{
+								if (VOLT - C1VOLTL > 166)
+								{
+								// turn on the gate
+								// delay for 10 seconds 
+								}
+								else 
+								{
+								// do not balance 
+								}
+						}
+						else if (C1VOLTL > VOLT)
+						{
+								if (C1VOLTL - VOLT > 166)
+								{
+								// turn on the other gate
+								// delay for 10 seconds 
+								}
+								else
+								{
+								// do not balance 
+								}
+						}
+						else if (C1VOLT = VOLT)
+						{
+							// do not balance 
+						}
+						else 
+						{
+							// do not balance 
+						}	
 				
-			
-			
-			
-			
-			
-			
+				}
 		}
 		// check if it is greater than 20% charged and needs to discharge
 		else if (PORTD == 0x00 && CMSB >= 0x7C)			// PB2 == 0 && 20%<CMSB
 		{
-				PORTD = 0x20;
-				_delay_ms(200);
+			PORTD = 0x20;
+			_delay_ms(200);
 			
-				i2c_init();			// INITALIZE TWI FOR MASTER MODE
-				i2c_start();			// TRANSMIT START CONDITION
-				i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
-				i2c_write(0x0E);		    //TRANSMIT WHAT ADDRESS TO READ FROM
-				i2c_start();			   // TRANSMIT START CONDITION
-				i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
-				MSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
-				i2c_stop();
+			i2c_init();			// INITALIZE TWI FOR MASTER MODE
+			i2c_start();			// TRANSMIT START CONDITION
+			i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+			i2c_write(0x0E);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+			i2c_start();			   // TRANSMIT START CONDITION
+			i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+			MSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+			i2c_stop();
 			
-				i2c_init();			// INITALIZE TWI FOR MASTER MODE
-				i2c_start();			// TRANSMIT START CONDITION
-				i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
-				i2c_write(0x0F);		    //TRANSMIT WHAT ADDRESS TO READ FROM
-				i2c_start();			   // TRANSMIT START CONDITION
-				i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
-				LSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
-				i2c_stop();
+			i2c_init();			// INITALIZE TWI FOR MASTER MODE
+			i2c_start();			// TRANSMIT START CONDITION
+			i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+			i2c_write(0x0F);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+			i2c_start();			   // TRANSMIT START CONDITION
+			i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+			LSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+			i2c_stop();
 			
 			
-				// combine the CLSB and CMSB
+			// combine the CLSB and CMSB
 
-				AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
+			AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
 			
-				// this code recognizes the current is discharge
+			// this code recognizes the current is discharge
 			
 			
-						if (AMP < 0x7800) // if the current is discharge
-						{
-						PORTD = 0x04;
-						}
-						else
-						{
-						PORTD = 0x00;
-						}
+			if (AMP < 0x7800) // if the current is discharge
+			{
+				PORTD = 0x04;
+			}
+			else
+			{
+				PORTD = 0x00;
+			}
 			
 
 		}
 		// check if it is less than 60% charged and needs to charge
 		else if (PORTD == 0x00 &&  CMSB > 0xC9)		// PB2 == 0 && 0 CMSB < 75%
 		{
-				PORTD = 0x20;
-				_delay_ms(200);
-					
-				i2c_init();			// INITALIZE TWI FOR MASTER MODE
-				i2c_start();			// TRANSMIT START CONDITION
-				i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
-				i2c_write(0x0E);		    //TRANSMIT WHAT ADDRESS TO READ FROM
-				i2c_start();			   // TRANSMIT START CONDITION
-				i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
-				MSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
-				i2c_stop();
-					
-				i2c_init();			// INITALIZE TWI FOR MASTER MODE
-				i2c_start();			// TRANSMIT START CONDITION
-				i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
-				i2c_write(0x0F);		    //TRANSMIT WHAT ADDRESS TO READ FROM
-				i2c_start();			   // TRANSMIT START CONDITION
-				i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
-				LSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
-				i2c_stop();
-					
-					
-				// combine the CLSB and CMSB
+			PORTD = 0x20;
+			_delay_ms(200);
+			
+			i2c_init();			// INITALIZE TWI FOR MASTER MODE
+			i2c_start();			// TRANSMIT START CONDITION
+			i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+			i2c_write(0x0E);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+			i2c_start();			   // TRANSMIT START CONDITION
+			i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+			MSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+			i2c_stop();
+			
+			i2c_init();			// INITALIZE TWI FOR MASTER MODE
+			i2c_start();			// TRANSMIT START CONDITION
+			i2c_write(0b11001000);		//TRANSMIT SLA 1100100 + R(0)
+			i2c_write(0x0F);		    //TRANSMIT WHAT ADDRESS TO READ FROM
+			i2c_start();			   // TRANSMIT START CONDITION
+			i2c_write(0b11001001);		//TRANSMIT SLA 1100100 + R(1)
+			LSBAMP = i2c_read(1);		// READ ONLY ONE BYTE OF DATA
+			i2c_stop();
+			
+			
+			// combine the CLSB and CMSB
 
-				AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
-					
-					
-				// this code recognizes the current is charge
-						if (AMP > 0x8500) // if the current is charge
-						{
-							PORTD = 0x04;
-						}
-						else
-						{
-							PORTD = 0x00;
-						}
+			AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
+			
+			
+			// this code recognizes the current is charge
+			if (AMP > 0x8500) // if the current is charge
+			{
+				PORTD = 0x04;
+			}
+			else
+			{
+				PORTD = 0x00;
+			}
 			
 		}
 		else
@@ -349,7 +368,7 @@ int main (void)
 
 	}
 	
-}	// this last parenthesis ends int main 
+}	// this last parenthesis ends int main
 
 
 
@@ -414,7 +433,7 @@ ISR (TIMER1_OVF_vect)				//ISR FOR TIMER1 COMPARE MATCH A
 
 ISR (INT0_vect)
 {
-// measure current 
+	// measure current
 
 	i2c_init();			// INITALIZE TWI FOR MASTER MODE
 	i2c_start();			// TRANSMIT START CONDITION
@@ -439,6 +458,6 @@ ISR (INT0_vect)
 
 	AMP = LSBAMP | (0xFF00 & (MSBAMP << 8));	// adds on MSB
 	
-	// add in an if statement that shuts off bidirectional switch here 
+	// add in an if statement that shuts off bidirectional switch here
 	
 }
